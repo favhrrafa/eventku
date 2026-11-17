@@ -1,10 +1,7 @@
-import { events, type Event } from "@/data/events";
+import { cache } from "react";
 import { supabase } from "@/lib/supabase";
-
-
-function jeda(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { Event } from "@/data/events";
 
 export async function ambilEvents(): Promise<Event[]> {
   const { data, error } = await supabase.from("events").select("*").order("tanggal");
@@ -18,15 +15,32 @@ export async function ambilEventsPreview(): Promise<Event[]> {
   return data as Event[];
 }
 
-export async function ambilEvent(id: number) {
-  await jeda(800);
-  return events.find((e) => e.id === id);
+export const ambilEvent = cache(async (id: number): Promise<Event | null> => {
+  if (!Number.isInteger(id)) return null;
+  const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error("Gagal memuat event: " + error.message);
+  return data as Event | null;
+});
+
+export async function ambilTerkait(event: Event): Promise<Event[]> {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("kategori", event.kategori)
+    .neq("id", event.id)
+    .order("tanggal");
+  if (error) throw new Error("Gagal memuat event terkait: " + error.message);
+  return data as Event[];
 }
 
-export async function ambilTerkait(event: Event) {
-  await jeda(2000);
-  return events.filter(
-    (e) => e.kategori === event.kategori && e.id !== event.id
-  );
+export async function hitungPesanan(eventId: number): Promise<{ jumlahPesanan: number; jumlahTiket: number }> {
+  const { data, error } = await supabaseAdmin
+    .from("pesanan")
+    .select("jumlah")
+    .eq("event_id", eventId);
+  if (error) throw new Error("Gagal menghitung pesanan: " + error.message);
+
+  const jumlahPesanan = data?.length ?? 0;
+  const jumlahTiket = data?.reduce((t, p) => t + (p.jumlah ?? 0), 0) ?? 0;
+  return { jumlahPesanan, jumlahTiket };
 }
-  
