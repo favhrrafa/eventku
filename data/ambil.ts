@@ -2,22 +2,34 @@ import { cache } from "react";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { Event } from "@/data/events";
+import type { Pesanan } from "./pesanan";
 
 export async function ambilEvents(): Promise<Event[]> {
-  const { data, error } = await supabase.from("events").select("*").order("tanggal");
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .order("tanggal");
   if (error) throw new Error("Gagal memuat event: " + error.message);
   return data as Event[];
 }
 
 export async function ambilEventsPreview(): Promise<Event[]> {
-  const { data, error } = await supabase.from("events").select("*").order("tanggal").limit(3);
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .order("tanggal")
+    .limit(3);
   if (error) throw new Error("Gagal memuat event: " + error.message);
   return data as Event[];
 }
 
 export const ambilEvent = cache(async (id: number): Promise<Event | null> => {
   if (!Number.isInteger(id)) return null;
-  const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw new Error("Gagal memuat event: " + error.message);
   return data as Event | null;
 });
@@ -33,7 +45,9 @@ export async function ambilTerkait(event: Event): Promise<Event[]> {
   return data as Event[];
 }
 
-export async function hitungPesanan(eventId: number): Promise<{ jumlahPesanan: number; jumlahTiket: number }> {
+export async function hitungPesanan(
+  eventId: number,
+): Promise<{ jumlahPesanan: number; jumlahTiket: number }> {
   const { data, error } = await supabaseAdmin
     .from("pesanan")
     .select("jumlah")
@@ -43,4 +57,14 @@ export async function hitungPesanan(eventId: number): Promise<{ jumlahPesanan: n
   const jumlahPesanan = data?.length ?? 0;
   const jumlahTiket = data?.reduce((t, p) => t + (p.jumlah ?? 0), 0) ?? 0;
   return { jumlahPesanan, jumlahTiket };
+}
+
+export async function ambilPesanan(): Promise<Pesanan[]> {
+  const { data, error } = await supabaseAdmin
+    .from("pesanan")
+    .select("*, events(judul)")
+    .order("nomor", { ascending: false });
+
+  if (error) throw new Error("Gagal memuat pesanan:" + error.message);
+  return data as Pesanan[];
 }
